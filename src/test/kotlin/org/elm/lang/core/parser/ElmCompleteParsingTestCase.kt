@@ -29,6 +29,8 @@ class ElmCompleteParsingTestCase : ElmParsingTestCaseBase("complete") {
     @Test
     fun testFunctionCall() = doTest(true)
     @Test
+    fun testFunctionMatchCtor() = doTest(true)
+    @Test
     fun testIfElse() = doTest(true)
     @Test
     fun testLetIn() = doTest(true)
