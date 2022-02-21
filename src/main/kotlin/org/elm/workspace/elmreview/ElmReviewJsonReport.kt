@@ -2,35 +2,48 @@ package org.elm.workspace.elmreview
 
 
 import com.google.gson.Gson
+import com.google.gson.GsonBuilder
+import com.intellij.openapi.diagnostic.logger
+import org.elm.workspace.commandLineTools.ElmReviewCLI
 
 // The Elm compiler emits HTTP URLs with angle brackets around them
 private val urlPattern = Regex("""<((http|https)://.*?)>""")
 
+private val log = logger<ElmReviewCLI>()
 
 fun elmReviewJsonToMessages(json: String): List<ElmReviewError> {
-    return when (val report = Gson().fromJson(json, Report::class.java) ?: error("failed to parse JSON report from elm-review")) {
-        is Report.General -> {
-            listOf(ElmReviewError(
+    val gson = GsonBuilder().setPrettyPrinting().create()
+    val jsonIn = gson.fromJson(json, Any::class.java)
+    log.warn("review report JSON: ${gson.toJson(jsonIn)}")
+    try {
+        val report = Gson().fromJson(json, Report::class.java)
+        return when (report) {
+            is Report.General -> {
+                listOf(ElmReviewError(
                     path = report.path,
                     rule = report.title,
                     message = chunksToLines(report.message).joinToString("\n"),
                     region = Region(Start(1, 1), End(2, 1)),
                     html = chunksToHtml(report.message)
-            ))
-        }
-        is Report.Specific -> {
-            report.errors.flatMap { errorsForFile ->
-                errorsForFile.errors.map { error ->
-                    ElmReviewError(
+                ))
+            }
+            is Report.Specific -> {
+                report.errors.flatMap { errorsForFile ->
+                    errorsForFile.errors.map { error ->
+                        ElmReviewError(
                             path = errorsForFile.path,
                             rule = error.rule,
                             message = error.message,
                             region = error.region,
                             html = chunksToHtml(error.formatted)
-                    )
+                        )
+                    }
                 }
             }
         }
+    } catch (e: java.lang.Exception) {
+        log.error(e.message)
+        throw e
     }
 }
 
